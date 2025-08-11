@@ -8,9 +8,9 @@ in your raspberry pi terminal run-
 
 cd Desktop
 --------------------------------------
-unzip chat_web.zip
+unzip chat_web_private.zip
 --------------------------------------
-cd chat_web
+cd chat_web_private
 --------------------------------------
 python3 -m venv venv
 --------------------------------------

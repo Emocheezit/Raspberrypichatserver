@@ -25,7 +25,7 @@ python app.py
 
 
 
-then in your browser visit             http://<thepiip>:5000/room/roomname     IMPORTANT NOTE "replace <thepiip>" with your Raspberry Pi ip
+then in your browser visit             http://thepiip:5000/room/roomname     IMPORTANT NOTE replace "thepiip" with your Raspberry Pi ip
 
 chat_web_private.zip ; beta v1
 NOTE the README instructions are only up to date with the most recent release of the private rooms chat server

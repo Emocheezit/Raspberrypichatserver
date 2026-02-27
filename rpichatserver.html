@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Outfit', sans-serif; }
+        .active-chat { background-color: #eff6ff !important; border-left: 4px solid #2563eb; }
+        .dark .active-chat { background-color: #1e3a8a33 !important; border-left: 4px solid #3b82f6; }
+        .tab-btn.active { border-bottom: 2px solid #2563eb; color: #2563eb; }
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+    </style>
+    <script>tailwind.config = { darkMode: 'class' }</script>
+</head>
+<body class="bg-white dark:bg-[#09090b] text-zinc-900 dark:text-zinc-100 h-screen flex overflow-hidden transition-colors duration-300">
+
+    <aside class="w-80 border-r border-gray-200 dark:border-zinc-800 flex flex-col">
+        <div class="p-6 flex items-center justify-between">
+            <h1 class="text-2xl font-bold tracking-tighter text-blue-600 italic">dachatthang</h1>
+            <button onclick="toggleSettings()" class="p-2 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-full transition text-xs font-bold uppercase tracking-widest opacity-70">Settings</button>
+        </div>
+        
+        <div id="chat-list" class="flex-1 overflow-y-auto px-3 space-y-1 custom-scrollbar"></div>
+
+        <div class="p-4 border-t border-gray-100 dark:border-zinc-800 flex items-center gap-3 bg-gray-50/50 dark:bg-zinc-900/20">
+            <img id="sidebar-pfp" src="https://api.dicebear.com/7.x/avataaars/svg?seed=Alex" class="w-10 h-10 rounded-full bg-gray-100 shadow-sm" />
+            <div class="flex-1 overflow-hidden">
+                <p id="sidebar-username" class="text-sm font-bold truncate">Alex</p>
+                <p class="text-[9px] text-green-500 font-bold tracking-widest">ONLINE</p>
+            </div>
+        </div>
+    </aside>
+
+    <main class="flex-1 flex flex-col relative bg-gray-50/30 dark:bg-[#09090b]">
+        <header id="chat-header" class="h-16 border-b border-gray-200 dark:border-zinc-800 px-6 flex items-center font-semibold">
+            <span class="opacity-40">Ready to dachatthang? Select a chat.</span>
+        </header>
+
+        <section id="messages" class="flex-1 p-6 space-y-4 overflow-y-auto flex flex-col custom-scrollbar"></section>
+
+        <footer class="p-4 bg-white dark:bg-[#09090b] border-t border-gray-100 dark:border-zinc-800">
+            <div class="flex items-center gap-2 bg-gray-100 dark:bg-zinc-900 rounded-[24px] p-1.5 pl-5 focus-within:ring-2 ring-blue-500/50 transition-all">
+                <input type="text" id="msg-input" placeholder="Type a message..." class="bg-transparent flex-1 outline-none text-sm py-2" />
+                <button id="send-btn" onclick="sendMessage()" class="bg-blue-600 text-white w-10 h-10 rounded-full flex items-center justify-center hover:scale-105 active:scale-95 transition">
+                    <svg viewBox="0 0 24 24" class="w-5 h-5 fill-current"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"></path></svg>
+                </button>
+            </div>
+        </footer>
+    </main>
+
+    <div id="settings-modal" class="hidden fixed inset-0 bg-white dark:bg-[#09090b] z-50 flex flex-col animate-in fade-in duration-200">
+        <div class="max-w-2xl mx-auto w-full p-8">
+            <div class="flex justify-between items-center mb-10">
+                <h2 class="text-3xl font-bold italic tracking-tighter">dachatthang <span class="text-sm not-italic opacity-40 ml-2">Settings</span></h2>
+                <button onclick="toggleSettings()" class="px-4 py-2 bg-gray-100 dark:bg-zinc-800 rounded-xl font-medium">✕ Close</button>
+            </div>
+
+            <div class="flex gap-8 border-b border-gray-100 dark:border-zinc-800 mb-8">
+                <button onclick="switchTab('profile')" id="tab-profile" class="tab-btn active pb-4 font-medium">Profile</button>
+                <button onclick="switchTab('social')" id="tab-social" class="tab-btn pb-4 font-medium">Social</button>
+            </div>
+
+            <div id="content-profile" class="space-y-8">
+                <div class="flex items-center gap-6">
+                    <div class="relative group cursor-pointer" onclick="document.getElementById('pfp-input').click()">
+                        <img id="display-pfp" src="https://api.dicebear.com/7.x/avataaars/svg?seed=Alex" class="w-24 h-24 rounded-full border-2 border-blue-500 object-cover shadow-lg" />
+                        <div class="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition">
+                            <span class="text-white text-xs font-bold">Change Pic</span>
+                        </div>
+                    </div>
+                    <input type="file" id="pfp-input" class="hidden" accept="image/*">
+                    <div class="flex-1">
+                        <label class="text-xs font-bold uppercase opacity-50">Username</label>
+                        <input type="text" id="username-input" oninput="updateUsername(this.value)" class="w-full bg-gray-50 dark:bg-zinc-900 p-3 rounded-xl mt-1 outline-none border border-transparent focus:border-blue-500" value="Alex">
+                    </div>
+                </div>
+                <div class="pt-6 border-t border-gray-100 dark:border-zinc-800">
+                    <label class="text-xs font-bold uppercase opacity-50 mb-4 block">Appearance</label>
+                    <button onclick="document.documentElement.classList.toggle('dark')" class="w-full flex justify-between items-center bg-gray-50 dark:bg-zinc-900 p-4 rounded-2xl hover:bg-gray-100 transition">
+                        <span>Toggle Light / Dark</span>
+                    </button>
+                </div>
+            </div>
+
+            <div id="content-social" class="hidden space-y-6">
+                <div id="pending-list" class="space-y-3"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let state = {
+            currentUser: { 
+                username: "Alex", 
+                pfp: "https://api.dicebear.com/7.x/avataaars/svg?seed=Alex" 
+            },
+            activeChatId: null,
+            chats: [
+                { id: 1, name: "Project Group", pinned: true, messages: [] },
+                { id: 2, name: "Milo (Server Guy)", pinned: false, messages: [] }
+            ],
+            pendingRequests: [
+                { id: 101, username: "Sarah_Cloud" },
+                { id: 102, username: "Raspberry_Pi_User" }
+            ]
+        };
+
+        function render() {
+            const list = document.getElementById('chat-list');
+            list.innerHTML = state.chats
+                .sort((a, b) => b.pinned - a.pinned)
+                .map(chat => `
+                    <div onclick="switchChat(${chat.id})" class="group flex items-center justify-between p-3 rounded-2xl cursor-pointer hover:bg-gray-50 dark:hover:bg-zinc-900 transition-all ${state.activeChatId === chat.id ? 'active-chat shadow-sm' : ''}">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-600/20 flex items-center justify-center font-bold text-blue-600 shadow-sm">${chat.name[0]}</div>
+                            <span class="font-medium text-sm">${chat.name}</span>
+                        </div>
+                        <button onclick="event.stopPropagation(); togglePin(${chat.id})" class="${chat.pinned ? 'text-blue-500' : 'opacity-0 group-hover:opacity-100 text-gray-300'}">📌</button>
+                    </div>
+                `).join('');
+
+            document.getElementById('sidebar-username').innerText = state.currentUser.username;
+            document.getElementById('sidebar-pfp').src = state.currentUser.pfp;
+            document.getElementById('display-pfp').src = state.currentUser.pfp;
+
+            const pending = document.getElementById('pending-list');
+            if (state.pendingRequests.length === 0) {
+                pending.innerHTML = '<p class="text-center opacity-30 py-10">No new requests</p>';
+            } else {
+                pending.innerHTML = '<h3 class="text-xs font-bold uppercase opacity-40 mb-2">Friend Requests</h3>' + 
+                state.pendingRequests.map(req => `
+                    <div class="flex items-center justify-between bg-gray-50 dark:bg-zinc-900 p-4 rounded-2xl border border-gray-100 dark:border-zinc-800">
+                        <span class="font-bold">${req.username}</span>
+                        <div class="flex gap-2">
+                            <button onclick="acceptFriend(${req.id})" class="bg-blue-600 text-white px-4 py-2 rounded-xl text-xs font-bold">Accept</button>
+                            <button onclick="declineFriend(${req.id})" class="bg-gray-200 dark:bg-zinc-800 px-4 py-2 rounded-xl text-xs font-bold">Decline</button>
+                        </div>
+                    </div>
+                `).join('');
+            }
+        }
+
+        function switchChat(id) {
+            state.activeChatId = id;
+            const chat = state.chats.find(c => c.id === id);
+            document.getElementById('chat-header').innerHTML = `<span class="text-blue-600 mr-2 text-xs">●</span> ${chat.name}`;
+            renderMessages();
+            render();
+        }
+
+        function renderMessages() {
+            if (!state.activeChatId) return;
+            const chat = state.chats.find(c => c.id === state.activeChatId);
+            const container = document.getElementById('messages');
+            container.innerHTML = chat.messages.map(m => `
+                <div class="flex flex-col ${m.sender === state.currentUser.username ? 'items-end' : 'items-start'} animate-in slide-in-from-bottom-2 duration-200">
+                    <span class="text-[9px] font-bold uppercase opacity-30 mb-1 px-2 tracking-widest">${m.sender}</span>
+                    <div class="${m.sender === state.currentUser.username ? 'bg-blue-600 text-white rounded-br-none shadow-blue-500/10' : 'bg-white dark:bg-zinc-800 rounded-bl-none shadow-sm'} px-4 py-2 rounded-[20px] text-sm shadow-md max-w-[75%]">
+                        ${m.text}
+                    </div>
+                </div>
+            `).join('');
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function sendMessage() {
+            const input = document.getElementById('msg-input');
+            if (!input.value.trim() || !state.activeChatId) return;
+            state.chats.find(c => c.id === state.activeChatId).messages.push({ sender: state.currentUser.username, text: input.value });
+            input.value = '';
+            renderMessages();
+        }
+
+        function updateUsername(val) {
+            state.currentUser.username = val || "Alex";
+            render();
+            if(state.activeChatId) renderMessages();
+        }
+
+        document.getElementById('pfp-input').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    state.currentUser.pfp = event.target.result;
+                    render();
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        function acceptFriend(reqId) {
+            const req = state.pendingRequests.find(r => r.id === reqId);
+            state.chats.push({ id: Date.now(), name: req.username, pinned: false, messages: [{sender: "dachatthang", text: `Welcome to the chat! You are now connected with ${req.username}.`}] });
+            state.pendingRequests = state.pendingRequests.filter(r => r.id !== reqId);
+            render();
+        }
+
+        function declineFriend(reqId) {
+            state.pendingRequests = state.pendingRequests.filter(r => r.id !== reqId);
+            render();
+        }
+
+        function togglePin(id) {
+            const chat = state.chats.find(c => c.id === id);
+            chat.pinned = !chat.pinned;
+            render();
+        }
+
+        function toggleSettings() { 
+            document.getElementById('settings-modal').classList.toggle('hidden'); 
+            render(); 
+        }
+        
+        function switchTab(tab) {
+            document.getElementById('content-profile').classList.toggle('hidden', tab !== 'profile');
+            document.getElementById('content-social').classList.toggle('hidden', tab !== 'social');
+            document.getElementById('tab-profile').classList.toggle('active', tab === 'profile');
+            document.getElementById('tab-social').classList.toggle('active', tab === 'social');
+        }
+
+        document.getElementById('msg-input').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendMessage();
+        });
+
+        render();
+    </script>
+</body>
+</html>

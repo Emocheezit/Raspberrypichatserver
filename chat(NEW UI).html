@@ -84,6 +84,13 @@
                         <span>Toggle Light / Dark Mode</span>
                     </button>
                 </div>
+                <div class="pt-6 border-t border-gray-100 dark:border-zinc-800">
+                    <label class="text-xs font-bold uppercase opacity-50 mb-4 block">Add Friend</label>
+                    <div class="flex gap-2">
+                        <input type="text" id="add-friend-input" placeholder="Enter username..." class="flex-1 bg-gray-50 dark:bg-zinc-900 p-3 rounded-xl outline-none border border-transparent focus:border-blue-500">
+                        <button onclick="addFriendManual()" class="bg-blue-600 text-white px-6 rounded-xl font-bold text-sm">Add</button>
+                    </div>
+                </div>
             </div>
 
             <div id="content-social" class="hidden space-y-6">
@@ -93,7 +100,6 @@
     </div>
 
     <script>
-        // --- SOCKET CONNECTION ---
         const socket = io(); 
 
         let state = {
@@ -108,29 +114,34 @@
             pendingRequests: []
         };
 
-        // Initialize connection
         socket.emit('join', state.currentUser.username);
 
-        // Receive messages from Flask server
+        // PUBLIC MESSAGES
         socket.on('message', function(msg) {
             let sender = "System";
             let text = msg;
-
-            // Handle the "User: Message" format from friend's server
             if (msg.includes(': ')) {
                 const parts = msg.split(': ');
                 sender = parts[0];
                 text = parts.slice(1).join(': ');
             }
-
-            // Route everything to Public Lobby
             const lobby = state.chats.find(c => c.id === 1);
             lobby.messages.push({ sender: sender, text: text });
-            
             if (state.activeChatId === 1) renderMessages();
         });
 
-        // --- RENDER FUNCTIONS ---
+        // PRIVATE MESSAGES
+        socket.on('new_private_msg', function(data) {
+            let chat = state.chats.find(c => c.name === data.sender);
+            if (!chat) {
+                chat = { id: Date.now(), name: data.sender, pinned: false, messages: [] };
+                state.chats.push(chat);
+                render();
+            }
+            chat.messages.push({ sender: data.sender, text: data.msg });
+            if (state.activeChatId === chat.id) renderMessages();
+        });
+
         function render() {
             const list = document.getElementById('chat-list');
             list.innerHTML = state.chats
@@ -150,19 +161,6 @@
             document.getElementById('sidebar-username').innerText = state.currentUser.username;
             document.getElementById('sidebar-pfp').src = state.currentUser.pfp;
             document.getElementById('display-pfp').src = state.currentUser.pfp;
-
-            const pending = document.getElementById('pending-list');
-            pending.innerHTML = state.pendingRequests.length === 0 
-                ? '<p class="text-center opacity-30 py-10 text-sm">No pending social requests</p>'
-                : state.pendingRequests.map(req => `
-                    <div class="flex items-center justify-between bg-gray-50 dark:bg-zinc-900 p-4 rounded-2xl border border-gray-100 dark:border-zinc-800">
-                        <span class="font-bold">${req.username}</span>
-                        <div class="flex gap-2">
-                            <button onclick="acceptFriend(${req.id})" class="bg-blue-600 text-white px-4 py-2 rounded-xl text-xs font-bold">Accept</button>
-                            <button onclick="declineFriend(${req.id})" class="bg-gray-200 dark:bg-zinc-800 px-4 py-2 rounded-xl text-xs font-bold text-red-500">✕</button>
-                        </div>
-                    </div>
-                `).join('');
         }
 
         function switchChat(id) {
@@ -190,12 +188,33 @@
 
         function sendMessage() {
             const input = document.getElementById('msg-input');
-            if (!input.value.trim()) return;
+            const chat = state.chats.find(c => c.id === state.activeChatId);
+            if (!input.value.trim() || !chat) return;
             
-            // Send to server
-            socket.send(input.value);
-            
+            if (chat.name === "Public Lobby") {
+                socket.send(input.value);
+            } else {
+                socket.emit('private_message', {
+                    recipient: chat.name,
+                    msg: input.value
+                });
+                chat.messages.push({ sender: state.currentUser.username, text: input.value });
+                renderMessages();
+            }
             input.value = '';
+        }
+
+        function addFriendManual() {
+            const input = document.getElementById('add-friend-input');
+            const name = input.value.trim();
+            if (!name || name === state.currentUser.username) return;
+            if (state.chats.find(c => c.name === name)) return;
+
+            const newChat = { id: Date.now(), name: name, pinned: false, messages: [] };
+            state.chats.push(newChat);
+            input.value = '';
+            toggleSettings();
+            switchChat(newChat.id);
         }
 
         function updateUsername(val) {

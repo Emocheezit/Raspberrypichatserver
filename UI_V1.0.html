@@ -1,7 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
+    <meta charset="UTF-8">
+    <title>dachatthang</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
     <style>
@@ -28,14 +30,14 @@
             <img id="sidebar-pfp" src="https://api.dicebear.com/7.x/avataaars/svg?seed=Alex" class="w-10 h-10 rounded-full bg-gray-100 shadow-sm" />
             <div class="flex-1 overflow-hidden">
                 <p id="sidebar-username" class="text-sm font-bold truncate">Alex</p>
-                <p class="text-[9px] text-green-500 font-bold tracking-widest">ONLINE</p>
+                <p class="text-[9px] text-green-500 font-bold tracking-widest uppercase">Connected</p>
             </div>
         </div>
     </aside>
 
     <main class="flex-1 flex flex-col relative bg-gray-50/30 dark:bg-[#09090b]">
         <header id="chat-header" class="h-16 border-b border-gray-200 dark:border-zinc-800 px-6 flex items-center font-semibold">
-            <span class="opacity-40">Ready to dachatthang? Select a chat.</span>
+            <span class="opacity-40 tracking-tight">Select a chat to start chatting</span>
         </header>
 
         <section id="messages" class="flex-1 p-6 space-y-4 overflow-y-auto flex flex-col custom-scrollbar"></section>
@@ -43,7 +45,7 @@
         <footer class="p-4 bg-white dark:bg-[#09090b] border-t border-gray-100 dark:border-zinc-800">
             <div class="flex items-center gap-2 bg-gray-100 dark:bg-zinc-900 rounded-[24px] p-1.5 pl-5 focus-within:ring-2 ring-blue-500/50 transition-all">
                 <input type="text" id="msg-input" placeholder="Type a message..." class="bg-transparent flex-1 outline-none text-sm py-2" />
-                <button id="send-btn" onclick="sendMessage()" class="bg-blue-600 text-white w-10 h-10 rounded-full flex items-center justify-center hover:scale-105 active:scale-95 transition">
+                <button id="send-btn" onclick="sendMessage()" class="bg-blue-600 text-white w-10 h-10 rounded-full flex items-center justify-center hover:scale-105 active:scale-95 transition shadow-lg">
                     <svg viewBox="0 0 24 24" class="w-5 h-5 fill-current"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"></path></svg>
                 </button>
             </div>
@@ -79,7 +81,7 @@
                 <div class="pt-6 border-t border-gray-100 dark:border-zinc-800">
                     <label class="text-xs font-bold uppercase opacity-50 mb-4 block">Appearance</label>
                     <button onclick="document.documentElement.classList.toggle('dark')" class="w-full flex justify-between items-center bg-gray-50 dark:bg-zinc-900 p-4 rounded-2xl hover:bg-gray-100 transition">
-                        <span>Toggle Light / Dark</span>
+                        <span>Toggle Light / Dark Mode</span>
                     </button>
                 </div>
             </div>
@@ -91,6 +93,9 @@
     </div>
 
     <script>
+        // --- SOCKET CONNECTION ---
+        const socket = io(); 
+
         let state = {
             currentUser: { 
                 username: "Alex", 
@@ -98,15 +103,34 @@
             },
             activeChatId: null,
             chats: [
-                { id: 1, name: "Project Group", pinned: true, messages: [] },
-                { id: 2, name: "Milo (Server Guy)", pinned: false, messages: [] }
+                { id: 1, name: "Public Lobby", pinned: true, messages: [] }
             ],
-            pendingRequests: [
-                { id: 101, username: "Sarah_Cloud" },
-                { id: 102, username: "Raspberry_Pi_User" }
-            ]
+            pendingRequests: []
         };
 
+        // Initialize connection
+        socket.emit('join', state.currentUser.username);
+
+        // Receive messages from Flask server
+        socket.on('message', function(msg) {
+            let sender = "System";
+            let text = msg;
+
+            // Handle the "User: Message" format from friend's server
+            if (msg.includes(': ')) {
+                const parts = msg.split(': ');
+                sender = parts[0];
+                text = parts.slice(1).join(': ');
+            }
+
+            // Route everything to Public Lobby
+            const lobby = state.chats.find(c => c.id === 1);
+            lobby.messages.push({ sender: sender, text: text });
+            
+            if (state.activeChatId === 1) renderMessages();
+        });
+
+        // --- RENDER FUNCTIONS ---
         function render() {
             const list = document.getElementById('chat-list');
             list.innerHTML = state.chats
@@ -117,7 +141,9 @@
                             <div class="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-600/20 flex items-center justify-center font-bold text-blue-600 shadow-sm">${chat.name[0]}</div>
                             <span class="font-medium text-sm">${chat.name}</span>
                         </div>
-                        <button onclick="event.stopPropagation(); togglePin(${chat.id})" class="${chat.pinned ? 'text-blue-500' : 'opacity-0 group-hover:opacity-100 text-gray-300'}">📌</button>
+                        <button onclick="event.stopPropagation(); togglePin(${chat.id})" class="p-1 rounded-full transition ${chat.pinned ? 'text-blue-500' : 'opacity-0 group-hover:opacity-100 text-gray-300'}">
+                            <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M16,12V4H17V2H7V4H8V12L6,14V16H11.2V22H12.8V16H18V14L16,12Z" /></svg>
+                        </button>
                     </div>
                 `).join('');
 
@@ -126,20 +152,17 @@
             document.getElementById('display-pfp').src = state.currentUser.pfp;
 
             const pending = document.getElementById('pending-list');
-            if (state.pendingRequests.length === 0) {
-                pending.innerHTML = '<p class="text-center opacity-30 py-10">No new requests</p>';
-            } else {
-                pending.innerHTML = '<h3 class="text-xs font-bold uppercase opacity-40 mb-2">Friend Requests</h3>' + 
-                state.pendingRequests.map(req => `
+            pending.innerHTML = state.pendingRequests.length === 0 
+                ? '<p class="text-center opacity-30 py-10 text-sm">No pending social requests</p>'
+                : state.pendingRequests.map(req => `
                     <div class="flex items-center justify-between bg-gray-50 dark:bg-zinc-900 p-4 rounded-2xl border border-gray-100 dark:border-zinc-800">
                         <span class="font-bold">${req.username}</span>
                         <div class="flex gap-2">
                             <button onclick="acceptFriend(${req.id})" class="bg-blue-600 text-white px-4 py-2 rounded-xl text-xs font-bold">Accept</button>
-                            <button onclick="declineFriend(${req.id})" class="bg-gray-200 dark:bg-zinc-800 px-4 py-2 rounded-xl text-xs font-bold">Decline</button>
+                            <button onclick="declineFriend(${req.id})" class="bg-gray-200 dark:bg-zinc-800 px-4 py-2 rounded-xl text-xs font-bold text-red-500">✕</button>
                         </div>
                     </div>
                 `).join('');
-            }
         }
 
         function switchChat(id) {
@@ -167,16 +190,18 @@
 
         function sendMessage() {
             const input = document.getElementById('msg-input');
-            if (!input.value.trim() || !state.activeChatId) return;
-            state.chats.find(c => c.id === state.activeChatId).messages.push({ sender: state.currentUser.username, text: input.value });
+            if (!input.value.trim()) return;
+            
+            // Send to server
+            socket.send(input.value);
+            
             input.value = '';
-            renderMessages();
         }
 
         function updateUsername(val) {
             state.currentUser.username = val || "Alex";
+            socket.emit('join', state.currentUser.username);
             render();
-            if(state.activeChatId) renderMessages();
         }
 
         document.getElementById('pfp-input').addEventListener('change', function(e) {
@@ -190,18 +215,6 @@
                 reader.readAsDataURL(file);
             }
         });
-
-        function acceptFriend(reqId) {
-            const req = state.pendingRequests.find(r => r.id === reqId);
-            state.chats.push({ id: Date.now(), name: req.username, pinned: false, messages: [{sender: "dachatthang", text: `Welcome to the chat! You are now connected with ${req.username}.`}] });
-            state.pendingRequests = state.pendingRequests.filter(r => r.id !== reqId);
-            render();
-        }
-
-        function declineFriend(reqId) {
-            state.pendingRequests = state.pendingRequests.filter(r => r.id !== reqId);
-            render();
-        }
 
         function togglePin(id) {
             const chat = state.chats.find(c => c.id === id);

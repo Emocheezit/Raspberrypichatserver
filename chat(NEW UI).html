@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>dachatthang</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -13,12 +14,15 @@
         .tab-btn.active { border-bottom: 2px solid #2563eb; color: #2563eb; }
         .custom-scrollbar::-webkit-scrollbar { width: 4px; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        
+        /* Smooth transitions for mobile view switching */
+        #sidebar, #main-chat { transition: all 0.2s ease-in-out; }
     </style>
     <script>tailwind.config = { darkMode: 'class' }</script>
 </head>
 <body class="bg-white dark:bg-[#09090b] text-zinc-900 dark:text-zinc-100 h-screen flex overflow-hidden transition-colors duration-300">
 
-    <aside class="w-80 border-r border-gray-200 dark:border-zinc-800 flex flex-col">
+    <aside id="sidebar" class="w-full md:w-80 border-r border-gray-200 dark:border-zinc-800 flex flex-col h-full bg-white dark:bg-[#09090b] shrink-0">
         <div class="p-6 flex items-center justify-between">
             <h1 class="text-2xl font-bold tracking-tighter text-blue-600 italic">dachatthang</h1>
             <button onclick="toggleSettings()" class="p-2 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-full transition text-xs font-bold uppercase tracking-widest opacity-70">Settings</button>
@@ -35,12 +39,17 @@
         </div>
     </aside>
 
-    <main class="flex-1 flex flex-col relative bg-gray-50/30 dark:bg-[#09090b]">
-        <header id="chat-header" class="h-16 border-b border-gray-200 dark:border-zinc-800 px-6 flex items-center font-semibold">
-            <span class="opacity-40 tracking-tight">Select a chat to start chatting</span>
+    <main id="main-chat" class="hidden md:flex flex-1 flex-col relative bg-gray-50/30 dark:bg-[#09090b] h-full">
+        <header id="chat-header" class="h-16 border-b border-gray-200 dark:border-zinc-800 px-4 md:px-6 flex items-center font-semibold gap-3">
+            <button onclick="closeChat()" class="md:hidden p-2 -ml-2 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-full">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+            </button>
+            <div id="header-content" class="flex items-center truncate">
+                <span class="opacity-40 tracking-tight">Select a chat</span>
+            </div>
         </header>
 
-        <section id="messages" class="flex-1 p-6 space-y-4 overflow-y-auto flex flex-col custom-scrollbar"></section>
+        <section id="messages" class="flex-1 p-4 md:p-6 space-y-4 overflow-y-auto flex flex-col custom-scrollbar"></section>
 
         <footer class="p-4 bg-white dark:bg-[#09090b] border-t border-gray-100 dark:border-zinc-800">
             <div class="flex items-center gap-2 bg-gray-100 dark:bg-zinc-900 rounded-[24px] p-1.5 pl-5 focus-within:ring-2 ring-blue-500/50 transition-all">
@@ -52,8 +61,8 @@
         </footer>
     </main>
 
-    <div id="settings-modal" class="hidden fixed inset-0 bg-white dark:bg-[#09090b] z-50 flex flex-col animate-in fade-in duration-200">
-        <div class="max-w-2xl mx-auto w-full p-8">
+    <div id="settings-modal" class="hidden fixed inset-0 bg-white dark:bg-[#09090b] z-50 flex flex-col animate-in fade-in duration-200 overflow-y-auto">
+        <div class="max-w-2xl mx-auto w-full p-6 md:p-8">
             <div class="flex justify-between items-center mb-10">
                 <h2 class="text-3xl font-bold italic tracking-tighter">dachatthang <span class="text-sm not-italic opacity-40 ml-2">Settings</span></h2>
                 <button onclick="toggleSettings()" class="px-4 py-2 bg-gray-100 dark:bg-zinc-800 rounded-xl font-medium">✕ Close</button>
@@ -65,7 +74,7 @@
             </div>
 
             <div id="content-profile" class="space-y-8">
-                <div class="flex items-center gap-6">
+                <div class="flex flex-col md:flex-row items-center gap-6">
                     <div class="relative group cursor-pointer" onclick="document.getElementById('pfp-input').click()">
                         <img id="display-pfp" src="https://api.dicebear.com/7.x/avataaars/svg?seed=Alex" class="w-24 h-24 rounded-full border-2 border-blue-500 object-cover shadow-lg" />
                         <div class="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition">
@@ -73,7 +82,7 @@
                         </div>
                     </div>
                     <input type="file" id="pfp-input" class="hidden" accept="image/*">
-                    <div class="flex-1">
+                    <div class="flex-1 w-full">
                         <label class="text-xs font-bold uppercase opacity-50">Username</label>
                         <input type="text" id="username-input" oninput="updateUsername(this.value)" class="w-full bg-gray-50 dark:bg-zinc-900 p-3 rounded-xl mt-1 outline-none border border-transparent focus:border-blue-500" value="Alex">
                     </div>
@@ -116,7 +125,6 @@
 
         socket.emit('join', state.currentUser.username);
 
-        // PUBLIC MESSAGES
         socket.on('message', function(msg) {
             let sender = "System";
             let text = msg;
@@ -130,7 +138,6 @@
             if (state.activeChatId === 1) renderMessages();
         });
 
-        // PRIVATE MESSAGES
         socket.on('new_private_msg', function(data) {
             let chat = state.chats.find(c => c.name === data.sender);
             if (!chat) {
@@ -166,9 +173,30 @@
         function switchChat(id) {
             state.activeChatId = id;
             const chat = state.chats.find(c => c.id === id);
-            document.getElementById('chat-header').innerHTML = `<span class="text-blue-600 mr-2 text-xs">●</span> ${chat.name}`;
+            
+            // UI Logic for mobile/desktop
+            document.getElementById('header-content').innerHTML = `
+                <span class="text-blue-600 mr-2 text-xs shrink-0">●</span> 
+                <span class="truncate">${chat.name}</span>
+            `;
+
+            // Mobile switch: Hide list, show chat
+            if (window.innerWidth < 768) {
+                document.getElementById('sidebar').classList.add('hidden');
+                document.getElementById('main-chat').classList.remove('hidden');
+                document.getElementById('main-chat').classList.add('flex');
+            }
+
             renderMessages();
             render();
+        }
+
+        function closeChat() {
+            // Mobile switch: Show list, hide chat
+            document.getElementById('sidebar').classList.remove('hidden');
+            document.getElementById('main-chat').classList.add('hidden');
+            document.getElementById('main-chat').classList.remove('flex');
+            state.activeChatId = null;
         }
 
         function renderMessages() {
@@ -178,7 +206,7 @@
             container.innerHTML = chat.messages.map(m => `
                 <div class="flex flex-col ${m.sender === state.currentUser.username ? 'items-end' : 'items-start'} animate-in slide-in-from-bottom-2 duration-200">
                     <span class="text-[9px] font-bold uppercase opacity-30 mb-1 px-2 tracking-widest">${m.sender}</span>
-                    <div class="${m.sender === state.currentUser.username ? 'bg-blue-600 text-white rounded-br-none shadow-blue-500/10' : 'bg-white dark:bg-zinc-800 rounded-bl-none shadow-sm'} px-4 py-2 rounded-[20px] text-sm shadow-md max-w-[75%]">
+                    <div class="${m.sender === state.currentUser.username ? 'bg-blue-600 text-white rounded-br-none shadow-blue-500/10' : 'bg-white dark:bg-zinc-800 rounded-bl-none shadow-sm'} px-4 py-2 rounded-[20px] text-sm shadow-md max-w-[85%] md:max-w-[75%] break-words">
                         ${m.text}
                     </div>
                 </div>
@@ -255,6 +283,17 @@
 
         document.getElementById('msg-input').addEventListener('keypress', (e) => {
             if (e.key === 'Enter') sendMessage();
+        });
+
+        // Handle window resizing (reset views if switching from mobile to desktop)
+        window.addEventListener('resize', () => {
+            if (window.innerWidth >= 768) {
+                document.getElementById('sidebar').classList.remove('hidden');
+                document.getElementById('main-chat').classList.remove('hidden');
+                document.getElementById('main-chat').classList.add('flex');
+            } else if (!state.activeChatId) {
+                document.getElementById('main-chat').classList.add('hidden');
+            }
         });
 
         render();
